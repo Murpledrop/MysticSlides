@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MysticSlides</title>
+<style>
+    * { box-sizing: border-box; font-family: "Segoe UI", Arial, sans-serif; }
+  body { margin: 0; background: #2d1b69; } /* DARKER purple */
+ .hidden { display: none!important; }
+
+  /* HOME SCREEN */
+  #home { padding: 20px; max-width: 1000px; margin: 0 auto; color: white; }
+  #home h1 { color: #a88bff; font-size: 32px; text-align: center; }
+ .sidebar { position: fixed; left: 0; top: 0; width: 80px; height: 100%; background: #4a2e9e; padding-top: 20px; display: flex; flex-direction: column; align-items: center; gap: 20px; }
+ .sidebar button { background: none; border: none; color: white; font-size: 12px; cursor: pointer; text-align: center; }
+ .sidebar button span { font-size: 24px; display: block; }
+ .home-content { margin-left: 90px; }
+ .template-card { background: #3a2580; border: 2px solid #a88bff; border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; }
+ .template-card:hover { background: #4a2e9e; }
+ .recent-list { background: #3a2580; border-radius: 8px; padding: 15px; margin-top: 20px; }
+ .recent-item { padding: 10px; border-bottom: 1px solid #4a2e9e; cursor: pointer; }
+ .recent-item:hover { background: #4a2e9e; }
+
+  /* EDITOR */
+  #editorScreen { background: #1a1038; height: 100vh; display: flex; flex-direction: column; }
+  header { background: #4a2e9e; color: white; padding: 10px 16px; display: flex; gap: 10px; align-items: center; }
+  header h1 { font-size: 18px; margin: 0; cursor: pointer; }
+ .toolbar { background: #3a2580; padding: 10px; display: flex; gap: 8px; flex-wrap: wrap; }
+ .toolbar button { padding: 6px 10px; border: 1px solid #a88bff; background: #4a2e9e; color: white; border-radius: 4px; cursor: pointer; }
+ .toolbar button:hover { background: #5a3ab0; }
+
+  /* SLIDE AREA */
+  #slideCanvas { flex: 1; display: flex; justify-content: center; align-items: center; position: relative; }
+ .slide { width: 90%; max-width: 900px; height: 70vh; background: white; border-radius: 8px; box-shadow: 0 0 20px rgba(168,139,255,0.3); padding: 40px; position: relative; overflow: auto; }
+ .textbox { border: 1px dashed #ccc; padding: 10px; margin: 10px 0; min-height: 50px; outline: none; }
+ .textbox:focus { border-color: #a88bff; }
+
+  /* SLIDE CONTROLS */
+ .slide-nav { position: fixed; bottom: 20px; width: 100%; display: flex; justify-content: space-between; padding: 0 20px; }
+ .slide-nav button { font-size: 32px; background: #4a2e9e; color: white; border: none; border-radius: 50%; width: 50px; height: 50px; cursor: pointer; }
+ .slide-counter { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); color: white; background: rgba(0,0,0,0.5); padding: 5px 15px; border-radius: 20px; }
+
+  /* POPUPS */
+ .popup { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #3a2580; color: white; padding: 20px; border-radius: 8px; z-index: 10; min-width: 300px; }
+ .layout-option { padding: 10px; border: 1px solid #a88bff; margin: 5px 0; cursor: pointer; border-radius: 4px; }
+ .layout-option:hover { background: #4a2e9e; }
+  #overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.6); z-index: 9; }
+</style>
+</head>
+<body>
+
+<!-- HOME SCREEN -->
+<div id="home">
+  <div class="sidebar">
+    <button onclick="newShow()"><span>➕</span>New</button>
+    <button onclick="showRecent()"><span>🕒</span>Recent</button>
+    <button onclick="loadFile()"><span>📂</span>Open</button>
+    <input type="file" id="fileInput" class="hidden" accept=".sslides" onchange="handleFile(event)">
+  </div>
+  <div class="home-content">
+    <h1>🔮 MysticSlides</h1>
+    <div class="template-card" onclick="newShow()"><div style="font-size:48px;">📊</div>Blank Presentation</div>
+    <div class="recent-list"><h3>Recent</h3><div id="recentShows">No recent slides yet</div></div>
+  </div>
+</div>
+
+<!-- EDITOR SCREEN -->
+<div id="editorScreen" class="hidden">
+  <header>
+    <h1 onclick="goHome()">🔮 MysticSlides</h1>
+    <span id="showTitle">Untitled</span>
+  </header>
+  <div class="toolbar">
+    <button onclick="showLayoutPopup()">➕ New Slide</button>
+    <button onclick="addTextBox()">T Text Box</button>
+    <button onclick="addImage()">🖼️ Image</button>
+    <button onclick="present(0)">▶️ From Start</button>
+    <button onclick="present(currentSlide)">▶️ From Here</button>
+    <button onclick="saveShow()">💾 Save</button>
+    <button onclick="showSaveAs()">📥 Save As</button>
+  </div>
+  <div id="slideCanvas"></div>
+  <div class="slide-nav hidden" id="navButtons">
+    <button onclick="prevSlide()">⬅️</button>
+    <button onclick="nextSlide()">➡️</button>
+  </div>
+  <div class="slide-counter hidden" id="slideCounter">1 / 1</div>
+</div>
+
+<!-- LAYOUT POPUP -->
+<div id="overlay" onclick="closePopup()"></div>
+<div class="popup" id="layoutPopup">
+  <h2>Pick a Layout</h2>
+  <div class="layout-option" onclick="addSlide('blank')">Blank Slide</div>
+  <div class="layout-option" onclick="addSlide('title')">Slide with Title</div>
+  <div class="layout-option" onclick="addSlide('titleOnly')">Slide with Title Only</div>
+  <div class="layout-option" onclick="addSlide('subtitle')">Slide with Subtitle</div>
+  <button style="background:#ccc; color:#333; margin-top:10px; width:100%;" onclick="closePopup()">Cancel</button>
+</div>
+
+<!-- SAVE AS POPUP -->
+<div class="popup" id="saveAsPopup">
+  <h2>Export Presentation</h2>
+  <div class="layout-option" onclick="exportFile('sslides')">MysticSlides.sslides</div>
+  <div class="layout-option" onclick="exportFile('pptx')">PowerPoint.pptx</div>
+  <div class="layout-option" onclick="exportFile('ppt')">PowerPoint 97-2003.ppt</div>
+  <div class="layout-option" onclick="exportFile('pdf')">PDF File.pdf</div>
+  <div class="layout-option" onclick="exportFile('gslides')">Google Slides.pptx</div>
+  <div class="layout-option" onclick="exportFile('key')">Keynote.pptx</div>
+  <div class="layout-option" onclick="exportFile('odp')">LibreOffice.odp</div>
+  <button style="background:#ccc; color:#333; margin-top:10px; width:100%;" onclick="closePopup()">Cancel</button>
+</div>
+
+<script>
+let slides = [{layout: 'title', elements: []}];
+let currentSlide = 0;
+let showName = "Untitled";
+let presenting = false;
+
+// HOME
+function goHome() { document.getElementById('home').classList.remove('hidden'); document.getElementById('editorScreen').classList.add('hidden'); showRecent(); }
+function newShow() { slides = [{layout: 'title', elements: []}]; currentSlide = 0; showName = "Untitled"; openEditor(); }
+function openEditor() { document.getElementById('home').classList.add('hidden'); document.getElementById('editorScreen').classList.remove('hidden'); renderSlide(); }
+
+// RECENT
+function saveToRecent() {
+  let recents = JSON.parse(localStorage.getItem('mystic_slides_recent') || '[]');
+  recents = recents.filter(d => d.name!== showName);
+  recents.unshift({ name: showName, slides: slides, time: Date.now() });
+  recents = recents.slice(0, 5);
+  localStorage.setItem('mystic_slides_recent', JSON.stringify(recents));
+}
+function showRecent() {
+  let recents = JSON.parse(localStorage.getItem('mystic_slides_recent') || '[]');
+  const div = document.getElementById('recentShows');
+  if (recents.length === 0) { div.innerHTML = "No recent slides yet"; return; }
+  div.innerHTML = recents.map(d => `<div class="recent-item" onclick="loadRecent('${d.name}')">${d.name}</div>`).join('');
+}
+function loadRecent(name) {
+  let recents = JSON.parse(localStorage.getItem('mystic_slides_recent') || '[]');
+  let data = recents.find(d => d.name === name);
+  if(data){ slides = data.slides; showName = data.name; document.getElementById('showTitle').innerText = showName; openEditor(); }
+}
+
+// SLIDES
+function showLayoutPopup() { document.getElementById('overlay').style.display = 'block'; document.getElementById('layoutPopup').style.display = 'block'; }
+function showSaveAs() { document.getElementById('overlay').style.display = 'block'; document.getElementById('saveAsPopup').style.display = 'block'; }
+function closePopup() { document.getElementById('overlay').style.display = 'none'; document.getElementById('layoutPopup').style.display = 'none'; document.getElementById('saveAsPopup').style.display = 'none'; }
+function addSlide(layout) { slides.splice(currentSlide + 1, 0, {layout: layout, elements: []}); currentSlide++; closePopup(); renderSlide(); }
+function renderSlide() {
+  const canvas = document.getElementById('slideCanvas');
+  const slide = slides[currentSlide];
+  let html = `<div class="slide">`;
+  if (slide.layout === 'title') html += `<h1 contenteditable="true" class="textbox">Click to add Title</h1>`;
+  if (slide.layout === 'titleOnly') html += `<h1 contenteditable="true" class="textbox" style="text-align:center; font-size:48px;">Title Only</h1>`;
+  if (slide.layout === 'subtitle') html += `<h1 contenteditable="true" class="textbox">Title</h1><h3 contenteditable="true" class="textbox">Subtitle</h3>`;
+  slide.elements.forEach(el => html += el);
+  html += `</div>`;
+  canvas.innerHTML = html;
+  document.getElementById('slideCounter').innerText = `${currentSlide + 1} / ${slides.length}`;
+  document.getElementById('showTitle').innerText = showName;
+}
+
+// ADD ELEMENTS
+function addTextBox() { slides[currentSlide].elements.push(`<div contenteditable="true" class="textbox">Text Box</div>`); renderSlide(); }
+function addImage() { const url = prompt("Paste image URL:"); if(url) { slides[currentSlide].elements.push(`<img src="${url}" style="max-width:100%; max-height:300px;">`); renderSlide(); } }
+
+// PRESENT
+function present(start) {
+  presenting = true; currentSlide = start;
+  document.getElementById('navButtons').classList.remove('hidden');
+  document.getElementById('slideCounter').classList.remove('hidden');
+  document.querySelector('.toolbar').classList.add('hidden'); renderSlide();
+}
+document.addEventListener('keydown', e => { if(presenting) { if(e.key === 'ArrowRight' || e.key === ' ') nextSlide(); if(e.key === 'ArrowLeft') prevSlide(); if(e.key === 'Escape') exitPresent(); }});
+function nextSlide() { if(currentSlide < slides.length - 1) { currentSlide++; renderSlide(); } }
+function prevSlide() { if(currentSlide > 0) { currentSlide--; renderSlide(); } }
+function exitPresent() { presenting = false; document.getElementById('navButtons').classList.add('hidden'); document.getElementById('slideCounter').classList.add('hidden'); document.querySelector('.toolbar').classList.remove('hidden'); }
+
+// SAVE / SAVE AS / LOAD
+function saveShow() { saveToRecent(); alert('Saved to Recent!'); }
+
+function exportFile(format) {
+  const htmlSlides = slides.map((s,i) => `<div style="width:100%; height:100vh; padding:40px; page-break-after:always; font-family:Arial;"><h2>Slide ${i+1}</h2>${s.elements.join('')}</div>`).join('');
+
+  if (format === 'pdf') {
+    const win = window.open('', '_blank');
+    win.document.write(`<html><head><title>${showName}</title></head><body>${htmlSlides}</body></html>`);
+    win.document.close();
+    win.print();
+    closePopup(); return;
+  }
+
+  let blob, filename;
+  if (format === 'sslides') {
+    const sslide = { app: "MysticSlides", version: "1.0", name: showName, slides: slides };
+    blob = new Blob([JSON.stringify(sslide)], {type: 'text/plain'});
+    filename = showName + '.sslides';
+  } else {
+    const content = `<html><head><meta charset='UTF-8'><title>${showName}</title></head><body>${htmlSlides}</body></html>`;
+    blob = new Blob([content], {type: 'application/vnd.ms-powerpoint'});
+    filename = showName + '.' + (format === 'gslides' || format === 'key' || format === 'odp'? 'pptx' : format);
+    if(format!== 'pptx' && format!== 'ppt') alert(`Exported as.pptx. Open in Google Slides/Keynote/LibreOffice then Save As ${format}`);
+  }
+
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  saveToRecent();
+  closePopup();
+}
+
+function handleFile(event) {
+  const file = event.target.files[0];
+  const reader = new FileReader();
+  reader.onload = e => { const data = JSON.parse(e.target.result); slides = data.slides; showName = data.name; document.getElementById('showTitle').innerText = showName; openEditor(); };
+  reader.readAsText(file);
+}
+function loadFile() { document.getElementById('fileInput').click(); }
+
+goHome();
+</script>
+</body>
+</html>
